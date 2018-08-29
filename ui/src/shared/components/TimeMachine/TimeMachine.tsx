@@ -113,9 +113,9 @@ interface State {
   data: FluxTable[]
   status: ScriptStatus
   selectedSource: Source
+  selectedService: Service
   activeQueryIndex: number
   activeEditorTab: CEOTabs
-  selectedService: Service
   useDynamicSource: boolean
   suggestions: Suggestion[]
 }
@@ -598,10 +598,22 @@ class TimeMachine extends PureComponent<Props, State> {
   }
 
   private getASTResponse = async (script: string, update: boolean = true) => {
-    const {fluxLinks} = this.props
+    const {fluxLinks, isInCEO} = this.props
+    const {selectedService} = this.state
 
     if (!script) {
       this.props.updateScript(script)
+      // UPDATE QUERY IN CELL
+      if (isInCEO) {
+        const queries = [
+          {
+            query: script,
+            queryConfig: null,
+            source: getDeep<string>(selectedService, 'links.self', ''),
+          },
+        ]
+        this.props.updateQueryDrafts(queries)
+      }
       return this.setState({ast: emptyAST, body: []})
     }
 
