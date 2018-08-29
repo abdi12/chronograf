@@ -32,7 +32,7 @@ import {
   deleteQueryAsync,
 } from 'src/dashboards/actions/cellEditorOverlay'
 import {UpdateScript} from 'src/flux/actions'
-import {Links} from 'src/types/flux'
+import {Links, ScriptStatus} from 'src/types/flux'
 
 const staticLegend: DashboardsModels.Legend = {
   type: 'static',
@@ -47,8 +47,8 @@ interface QueryStatus {
 interface Props {
   fluxLinks: Links
   script: string
-  sources: SourcesModels.Source[]
   services: Service[]
+  sources: SourcesModels.Source[]
   notify: NotificationAction
   editQueryStatus: typeof editCellQueryStatus
   onCancel: () => void
@@ -76,6 +76,8 @@ interface Props {
 
 interface State {
   isStaticLegend: boolean
+  selectedService: Service
+  status: ScriptStatus
 }
 
 @ErrorHandling
@@ -90,6 +92,11 @@ class CellEditorOverlay extends Component<Props, State> {
 
     this.state = {
       isStaticLegend: IS_STATIC_LEGEND(legend),
+      selectedService: null,
+      status: {
+        type: 'none',
+        text: '',
+      },
     }
   }
 
@@ -132,27 +139,29 @@ class CellEditorOverlay extends Component<Props, State> {
         ref={this.onRef}
       >
         <TimeMachine
-          fluxLinks={fluxLinks}
           notify={notify}
           script={script}
-          queryDrafts={queryDrafts}
-          updateScript={updateScript}
-          editQueryStatus={editQueryStatus}
-          templates={templates}
-          timeRange={timeRange}
-          autoRefresh={autoRefresh}
           source={source}
-          onResetFocus={this.handleResetFocus}
           isInCEO={true}
           sources={sources}
           services={services}
-          updateQueryDrafts={updateQueryDrafts}
-          onToggleStaticLegend={this.handleToggleStaticLegend}
-          isStaticLegend={isStaticLegend}
-          queryConfigActions={this.props.queryConfigActions}
           addQuery={addQuery}
+          templates={templates}
+          timeRange={timeRange}
+          fluxLinks={fluxLinks}
+          queryDrafts={queryDrafts}
+          autoRefresh={autoRefresh}
           deleteQuery={deleteQuery}
+          updateScript={updateScript}
+          isStaticLegend={isStaticLegend}
+          editQueryStatus={editQueryStatus}
+          updateService={this.updateService}
+          onResetFocus={this.handleResetFocus}
+          updateQueryDrafts={updateQueryDrafts}
+          updateFluxStatus={this.updateFluxStatus}
           updateEditorTimeRange={updateEditorTimeRange}
+          queryConfigActions={this.props.queryConfigActions}
+          onToggleStaticLegend={this.handleToggleStaticLegend}
         >
           {(activeEditorTab, onSetActiveEditorTab) => (
             <CEOHeader
@@ -169,9 +178,17 @@ class CellEditorOverlay extends Component<Props, State> {
       </div>
     )
   }
+  private get isFluxSource(): boolean {
+    return _.get(this.state.selectedService, 'type', '') === 'flux'
+  }
 
   private get isSaveable(): boolean {
     const {queryDrafts} = this.props
+
+    if (this.isFluxSource) {
+      return this.state.status.type === 'success'
+    }
+
     return queryDrafts.every(queryDraft => {
       const queryConfig = getDeep<QueriesModels.QueryConfig | null>(
         queryDraft,
@@ -189,6 +206,10 @@ class CellEditorOverlay extends Component<Props, State> {
 
   private onRef = (r: HTMLDivElement) => {
     this.overlayRef = r
+  }
+
+  private updateFluxStatus = (status: ScriptStatus) => {
+    this.setState({status})
   }
 
   private handleSaveCell = () => {
@@ -237,6 +258,10 @@ class CellEditorOverlay extends Component<Props, State> {
     }
 
     this.props.onSave(newCell)
+  }
+
+  private updateService = (service: Service) => {
+    this.setState({selectedService: service})
   }
 
   private handleKeyDown = e => {

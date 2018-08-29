@@ -90,6 +90,8 @@ interface Props {
   deleteQuery: typeof deleteQueryAsync
   queryConfigActions: QueryConfigActions
   notify: NotificationAction
+  updateService: (service: Service) => void
+  updateFluxStatus: (status: ScriptStatus) => void
   editQueryStatus: typeof editCellQueryStatus
   updateQueryDrafts: (queryDrafts: CellQuery[]) => void
   updateEditorTimeRange: (timeRange: TimeRange) => void
@@ -525,6 +527,7 @@ class TimeMachine extends PureComponent<Props, State> {
   ): void => {
     const useDynamicSource = false
 
+    this.props.updateService(selectedService)
     this.updateQueryDrafts(selectedSource)
     this.setState({selectedService, selectedSource, useDynamicSource})
   }
@@ -612,8 +615,11 @@ class TimeMachine extends PureComponent<Props, State> {
       const body = bodyNodes(ast, this.state.suggestions)
       const status = {type: 'success', text: ''}
       this.setState({ast, body, status})
+      this.props.updateFluxStatus(status)
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
   }
@@ -626,7 +632,9 @@ class TimeMachine extends PureComponent<Props, State> {
     try {
       await getAST({url: fluxLinks.ast, body: script})
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
     try {
@@ -809,8 +817,11 @@ class TimeMachine extends PureComponent<Props, State> {
       notify(validateSuccess())
 
       this.setState({ast, body, status})
+      this.props.updateFluxStatus(status)
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
   }
