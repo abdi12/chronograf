@@ -163,6 +163,7 @@ const replaceAll = (query: string, search: string, replacement: string) => {
 
 export const templateInternalReplace = (template: Template): string => {
   const {influxql, db, measurement, tagKey} = template.query
+  console.log(influxql)
 
   if (template.type === TemplateType.MetaQuery) {
     // A custom meta query template may reference other templates whose names

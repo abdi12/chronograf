@@ -35,7 +35,7 @@ import {Service, NotificationAction} from 'src/types'
 import {Template} from 'src/types/tempVars'
 import {NewDefaultCell} from 'src/types/dashboards'
 import {UpdateScript} from 'src/flux/actions'
-import {Links} from 'src/types/flux'
+import {Links, ScriptStatus} from 'src/types/flux'
 
 const staticLegend: DashboardsModels.Legend = {
   type: 'static',
@@ -87,6 +87,8 @@ interface Props {
 
 interface State {
   isStaticLegend: boolean
+  currentService: currentService
+  status: ScriptStatus
 }
 
 @ErrorHandling
@@ -101,6 +103,8 @@ class CellEditorOverlay extends Component<Props, State> {
 
     this.state = {
       isStaticLegend: IS_STATIC_LEGEND(legend),
+      currentService: null,
+      status: '',
     }
   }
 
@@ -144,6 +148,8 @@ class CellEditorOverlay extends Component<Props, State> {
       >
         <TimeMachine
           fluxLinks={fluxLinks}
+          updateFluxStatus={this.updateFluxStatus}
+          updateService={this.updateService}
           notify={notify}
           script={script}
           queryDrafts={queryDrafts}
@@ -184,6 +190,12 @@ class CellEditorOverlay extends Component<Props, State> {
 
   private get isSaveable(): boolean {
     const {queryDrafts} = this.props
+    const {currentService, status} = this.state
+
+    if (currentService) {
+      return status.type === 'success'
+    }
+
     return queryDrafts.every(queryDraft => {
       const queryConfig = getDeep<QueriesModels.QueryConfig | null>(
         queryDraft,
@@ -232,6 +244,16 @@ class CellEditorOverlay extends Component<Props, State> {
     this.overlayRef = r
   }
 
+  private updateService = (service: Service) => {
+    this.setState({
+      currentService: service,
+    })
+  }
+
+  private updateFluxStatus = (status: ScriptStatus) => {
+    this.setState({status})
+  }
+
   private handleSaveCell = () => {
     const {isStaticLegend} = this.state
     const {
@@ -239,29 +261,43 @@ class CellEditorOverlay extends Component<Props, State> {
       thresholdsListColors,
       gaugeColors,
       lineColors,
+      script,
       cell,
     } = this.props
+    const {currentService} = this.state
 
-    const queries: DashboardsModels.CellQuery[] = queryDrafts.map(q => {
-      const queryConfig = getDeep<QueriesModels.QueryConfig | null>(
-        q,
-        'queryConfig',
-        null
-      )
-      const timeRange = getTimeRange(queryConfig)
-      const source = getDeep<string | null>(
-        queryConfig,
-        'source.links.self',
-        null
-      )
-      return {
-        ...q,
-        query:
-          queryConfig.rawText ||
-          buildQuery(TYPE_QUERY_CONFIG, timeRange, queryConfig),
-        source,
-      }
-    })
+    let queries: DashboardsModels.CellQuery[]
+
+    if (currentService) {
+      queries = [
+        {
+          query: script,
+          queryConfig: null,
+          source: getDeep<string>(currentService, 'links.self', ''),
+        },
+      ]
+    } else {
+      queries = queryDrafts.map(q => {
+        const queryConfig = getDeep<QueriesModels.QueryConfig | null>(
+          q,
+          'queryConfig',
+          null
+        )
+        const timeRange = getTimeRange(queryConfig)
+        const source = getDeep<string | null>(
+          queryConfig,
+          'source.links.self',
+          null
+        )
+        return {
+          ...q,
+          query:
+            queryConfig.rawText ||
+            buildQuery(TYPE_QUERY_CONFIG, timeRange, queryConfig),
+          source,
+        }
+      })
+    }
 
     const colors = getCellTypeColors({
       cellType: cell.type,

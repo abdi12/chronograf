@@ -105,6 +105,8 @@ interface Props {
   templates: Template[]
   isStaticLegend: boolean
   queryDrafts: CellQuery[]
+  updateFluxStatus?: (status: ScriptStatus) => void
+  updateService?: (service: Service) => void
   onResetFocus: () => void
   updateSourceLink?: typeof updateSourceLinkAction
   updateScript: (script: string, stateToUpdate: QueryUpdateState) => void
@@ -624,11 +626,15 @@ class TimeMachine extends PureComponent<Props, State> {
     selectedService: Service,
     selectedSource: Source
   ): void => {
-    const {updateSourceLink} = this.props
+    const {updateSourceLink, isInCEO} = this.props
     const useDynamicSource = false
 
     if (updateSourceLink) {
       updateSourceLink(getDeep<string>(selectedService, 'links.self', ''))
+    }
+
+    if (isInCEO) {
+      this.props.updateService(selectedService)
     }
 
     this.updateQueryDraftsSource(selectedSource)
@@ -728,8 +734,11 @@ class TimeMachine extends PureComponent<Props, State> {
       const body = bodyNodes(ast, this.state.suggestions)
       const status = {type: 'success', text: ''}
       this.setState({ast, body, status})
+      this.props.updateFluxStatus(status)
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
   }
@@ -742,7 +751,9 @@ class TimeMachine extends PureComponent<Props, State> {
     try {
       await getAST({url: fluxLinks.ast, body: script})
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
     try {
@@ -922,11 +933,14 @@ class TimeMachine extends PureComponent<Props, State> {
       const ast = await getAST({url: fluxLinks.ast, body: script})
       const body = bodyNodes(ast, this.state.suggestions)
       const status = {type: 'success', text: ''}
+      this.props.updateFluxStatus(status)
       notify(validateSuccess())
 
       this.setState({ast, body, status})
     } catch (error) {
-      this.setState({status: parseError(error)})
+      const status = parseError(error)
+      this.setState({status})
+      this.props.updateFluxStatus(status)
       return console.error('Could not parse AST', error)
     }
   }
